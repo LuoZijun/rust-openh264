@@ -1,0 +1,13 @@
+[package]
+name = "openh264"
+version = "1.8.0"
+authors = ["luozijun <luozijun.assistant@gmail.com>"]
+edition = "2018"
+
+
+[dependencies]
+openh264-sys = { git = "https://github.com/LuoZijun/rust-openh264-sys" }
+
+[dev-dependencies]
+mp4 = { git = "https://github.com/LuoZijun/rust-mp4" }
+
