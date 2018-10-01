@@ -3,19 +3,19 @@ use crate::openh264_sys::*;
 
 use std::ptr;
 use std::mem;
-use std::time;
 use std::slice;
-use std::thread;
+// use std::time;
+// use std::thread;
 use std::io::Write;
 
 
 pub struct I420Frame<'y, 'u, 'v> {
-    y: &'y [u8],
-    u: &'u [u8],
-    v: &'v [u8],
-    width: usize,
-    height: usize,
-    stride: [usize; 2],
+    pub y: &'y [u8],
+    pub u: &'u [u8],
+    pub v: &'v [u8],
+    pub width: usize,
+    pub height: usize,
+    pub stride: [usize; 2],
 }
 
 impl<'y, 'u, 'v> I420Frame<'y, 'u, 'v> {
@@ -47,6 +47,7 @@ impl<'y, 'u, 'v> I420Frame<'y, 'u, 'v> {
 pub struct Decoder {
     inner: *mut ISVCDecoder,
     dst_info: SBufferInfo,
+    yuv_buffer: [*mut u8; 3],
 }
 
 
@@ -78,12 +79,13 @@ impl Decoder {
         }
 
         unsafe {
-            let SetOption = (**decoder).SetOption.unwrap();
-            SetOption(decoder,
+            let set_option = (**decoder).SetOption.unwrap();
+            // WELS_LOG_ERROR WELS_LOG_WARNING
+            set_option(decoder,
                       DECODER_OPTION::DECODER_OPTION_TRACE_LEVEL,
-                      mem::transmute::<&openh264_sys::_bindgen_ty_3, _>(&WELS_LOG_ERROR),
+                      mem::transmute::<&openh264_sys::_bindgen_ty_3, _>(&WELS_LOG_WARNING),
             );
-            SetOption(decoder,
+            set_option(decoder,
                       DECODER_OPTION::DECODER_OPTION_ERROR_CON_IDC,
                       mem::transmute::<&i32, _>(&(ERROR_CON_IDC::ERROR_CON_SLICE_COPY as i32)),
             );
@@ -92,15 +94,17 @@ impl Decoder {
         Ok(Decoder {
             inner: decoder,
             dst_info: unsafe { mem::zeroed() },
+            yuv_buffer: [ ptr::null_mut(), ptr::null_mut(), ptr::null_mut() ]
         })
     }
 
     pub fn decode(&mut self, bytes: &[u8]) -> Option<I420Frame> {
-        let DecodeFrame2 = unsafe { (**(self.inner)).DecodeFrameNoDelay.unwrap() };
+        // let mut yuv_buffer: [*mut u8; 3] = [ ptr::null_mut(), ptr::null_mut(), ptr::null_mut() ];
+        let mut yuv_buffer = self.yuv_buffer;
 
-        let mut yuv_buffer: [*mut u8; 3] = [ ptr::null_mut(), ptr::null_mut(), ptr::null_mut() ];
         let ret = unsafe {
-            DecodeFrame2(self.inner,
+            let decode_frame_no_delay = (**(self.inner)).DecodeFrameNoDelay.unwrap();
+            decode_frame_no_delay(self.inner,
                          bytes.as_ptr(),
                          bytes.len() as i32,
                          yuv_buffer.as_mut_ptr(),
@@ -120,7 +124,7 @@ impl Decoder {
         }
 
         let stride = [ frame_system_buffer.iStride[0] as usize, frame_system_buffer.iStride[1] as usize ];
-        // (self.dst_info.uiInBsTimeStamp) += 512;
+        (self.dst_info.uiInBsTimeStamp) += 40;
 
         let ysize = width.max(stride[0]) * height.max(stride[1]);
         let uvsize = ysize / 4;
