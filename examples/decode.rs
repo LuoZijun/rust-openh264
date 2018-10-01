@@ -36,11 +36,12 @@ fn main() {
     };
 
     let mut decoder = Decoder::new().expect("Ooops ...");
-    let mut mp4_file = fs::File::open("a.mp4").unwrap();  
+    let mut mp4_file = fs::File::open("c.mp4").unwrap();  
     let mp4_ctx = mp4::parse::parse(&mut mp4_file).unwrap();
     
     let mut frams_count = 0usize;
     let mut elapsed: u128 = 0;
+
 
     for video_track in mp4_ctx.video_tracks {
         if video_track.codec() == VideoCodec::H264 {
@@ -62,10 +63,14 @@ fn main() {
                     decode_nalu(&mut decoder, &nalu, &mut rawvideo_file, &mut frams_count, &mut elapsed);
                 }
             }
+
+            let w = video_track.width();
+            let h = video_track.height();
+            println!("Frames: {} Duration: {}ms", frams_count, elapsed);
+            println!("ffplay -f rawvideo -pixel_format yuv420p -video_size {}x{} rawvideo.yuv", w, h);
+            println!("vlc --demux rawvideo --rawvid-fps 5 --rawvid-width {} --rawvid-height {} --rawvid-chroma I420 rawvideo.yuv", w, h);
+
+            break;
         }
     }
-
-    println!("Frames: {} Duration: {}ms", frams_count, elapsed);
-    println!("ffplay -f rawvideo -pixel_format yuv420p -video_size 1280x720 rawvideo.yuv");
-    println!("vlc --demux rawvideo --rawvid-fps 5 --rawvid-width 1280 --rawvid-height 720 --rawvid-chroma I420 rawvideo.yuv");
 }
